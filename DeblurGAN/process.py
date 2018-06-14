@@ -10,6 +10,12 @@ from keras import backend as KTF
 from keras.preprocessing import image
 from DeblurGAN.main import deblurGAN
 
+
+# To run:
+# Format:   python DeblurGAN//process.py path/to/input/ path/to/output
+# Example:  python DeblurGAN//process.py sample/evaluation-images sample/evaluation-images-histeq
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--in_path", default="sample/evaluation-images/", help="input image/directory path")
 parser.add_argument("--out_path", default="sample/evaluation-images_deblurGAN/", help="output image/directory path")
