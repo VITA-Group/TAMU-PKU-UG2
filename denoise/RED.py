@@ -30,6 +30,8 @@ parser.add_argument('--input_dir', '-i', required=True)
 parser.add_argument('--output_dir', '-o', required=True)
 args = parser.parse_args()
 
+device = torch.device('cpu' if args.cpu else 'cuda')
+
 # In[2]:
 
 def ensure_exists(dname):
@@ -214,8 +216,7 @@ def output2na(out):
 
 jnet = nn.DataParallel(SimpleRED())
 jnet.load_state_dict(torch.load(args.weights))
-if not args.cpu:
-    jnet = jnet.cuda()
+jnet = jnet.to(device)
 
 
 # In[ ]:
@@ -227,138 +228,133 @@ testset = JPEGImageDataset(args.input_dir, preload=True,
                                torchvision.transforms.ToTensor()
                            ]))
 testset_loader = torch.utils.data.DataLoader(testset, batch_size=1)
-_ps1=[]
 
-print('running channel 1/3:')
-for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float()
-    if not args.cpu:
-        gen = gen.cuda()
-    bs, c, h, w = gen.shape
-    hs, ws  = h // 3, w // 3
-    out = jnet(gen[:,:,:hs,:ws])
-    p1 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,:ws])
-    p2 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,:ws])
-    p3 = output2na(out)
-    out = jnet(gen[:,:,:hs,ws:2*ws])
-    p4 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
-    p5 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,ws:2*ws])
-    p6 = output2na(out)
-    out = jnet(gen[:,:,:hs,2*ws:])
-    p7 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,2*ws:])
-    p8 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,2*ws:])
-    p9 = output2na(out)
-    out = np.hstack([
-        np.vstack([p1,p2,p3]),
-        np.vstack([p4,p5,p6]),
-        np.vstack([p7,p8,p9])
-    ])
-    result = testset.loaded_images[_][:,:,0].copy()
-    result[:out.shape[0],:out.shape[1]] = out
-    _ps1.append(result)
+with torch.no_grad():
+    _ps1=[]
 
-
-# In[ ]:
-
-testset.transform = torchvision.transforms.Compose([
-                               Align2(24),
-                               GetChannel(1),
-                               torchvision.transforms.ToTensor()
-                           ])
-_ps2=[]
-
-print('running channel 2/3:')
-for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float()
-    if not args.cpu:
-        gen = gen.cuda()
-    bs, c, h, w = gen.shape
-    hs, ws  = h // 3, w // 3
-    out = jnet(gen[:,:,:hs,:ws])
-    p1 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,:ws])
-    p2 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,:ws])
-    p3 = output2na(out)
-    out = jnet(gen[:,:,:hs,ws:2*ws])
-    p4 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
-    p5 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,ws:2*ws])
-    p6 = output2na(out)
-    out = jnet(gen[:,:,:hs,2*ws:])
-    p7 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,2*ws:])
-    p8 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,2*ws:])
-    p9 = output2na(out)
-    out = np.hstack([
-        np.vstack([p1,p2,p3]),
-        np.vstack([p4,p5,p6]),
-        np.vstack([p7,p8,p9])
-    ])
-    result = testset.loaded_images[_][:,:,1].copy()
-    result[:out.shape[0],:out.shape[1]] = out
-    _ps2.append(result)
-
-# In[ ]:
-
-testset.transform = torchvision.transforms.Compose([
-                               Align2(24),
-                               GetChannel(2),
-                               torchvision.transforms.ToTensor()
-                           ])
-_ps3=[]
-
-print('running channel 3/3:')
-for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float()
-    if not args.cpu:
-        gen = gen.cuda()
-    bs, c, h, w = gen.shape
-    hs, ws  = h // 3, w // 3
-    out = jnet(gen[:,:,:hs,:ws])
-    p1 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,:ws])
-    p2 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,:ws])
-    p3 = output2na(out)
-    out = jnet(gen[:,:,:hs,ws:2*ws])
-    p4 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
-    p5 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,ws:2*ws])
-    p6 = output2na(out)
-    out = jnet(gen[:,:,:hs,2*ws:])
-    p7 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,2*ws:])
-    p8 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,2*ws:])
-    p9 = output2na(out)
-    out = np.hstack([
-        np.vstack([p1,p2,p3]),
-        np.vstack([p4,p5,p6]),
-        np.vstack([p7,p8,p9])
-    ])
-    result = testset.loaded_images[_][:,:,2].copy()
-    result[:out.shape[0],:out.shape[1]] = out
-    _ps3.append(result)
+    print('running channel 1/3:')
+    for _, vd in tqdm(enumerate(testset_loader, 0)):
+        gen = var(vd).float().to(device)
+        bs, c, h, w = gen.shape
+        hs, ws  = h // 3, w // 3
+        out = jnet(gen[:,:,:hs,:ws])
+        p1 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,:ws])
+        p2 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,:ws])
+        p3 = output2na(out)
+        out = jnet(gen[:,:,:hs,ws:2*ws])
+        p4 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
+        p5 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,ws:2*ws])
+        p6 = output2na(out)
+        out = jnet(gen[:,:,:hs,2*ws:])
+        p7 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,2*ws:])
+        p8 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,2*ws:])
+        p9 = output2na(out)
+        out = np.hstack([
+            np.vstack([p1,p2,p3]),
+            np.vstack([p4,p5,p6]),
+            np.vstack([p7,p8,p9])
+        ])
+        result = testset.loaded_images[_][:,:,0].copy()
+        result[:out.shape[0],:out.shape[1]] = out
+        _ps1.append(result)
 
 
-# In[ ]:
+    # In[ ]:
 
-print('concat-ing...')
-_ps = []
-for i in tqdm(range(len(testset_loader))):
-    tmp = np.dstack([_ps1[i],_ps2[i],_ps3[i]])
-    _ps.append(tmp)
+    testset.transform = torchvision.transforms.Compose([
+                                Align2(24),
+                                GetChannel(1),
+                                torchvision.transforms.ToTensor()
+                            ])
+    _ps2=[]
 
+    print('running channel 2/3:')
+    for _, vd in tqdm(enumerate(testset_loader, 0)):
+        gen = var(vd).float().to(device)
+        bs, c, h, w = gen.shape
+        hs, ws  = h // 3, w // 3
+        out = jnet(gen[:,:,:hs,:ws])
+        p1 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,:ws])
+        p2 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,:ws])
+        p3 = output2na(out)
+        out = jnet(gen[:,:,:hs,ws:2*ws])
+        p4 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
+        p5 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,ws:2*ws])
+        p6 = output2na(out)
+        out = jnet(gen[:,:,:hs,2*ws:])
+        p7 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,2*ws:])
+        p8 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,2*ws:])
+        p9 = output2na(out)
+        out = np.hstack([
+            np.vstack([p1,p2,p3]),
+            np.vstack([p4,p5,p6]),
+            np.vstack([p7,p8,p9])
+        ])
+        result = testset.loaded_images[_][:,:,1].copy()
+        result[:out.shape[0],:out.shape[1]] = out
+        _ps2.append(result)
+
+    # In[ ]:
+
+    testset.transform = torchvision.transforms.Compose([
+                                Align2(24),
+                                GetChannel(2),
+                                torchvision.transforms.ToTensor()
+                            ])
+    _ps3=[]
+
+    print('running channel 3/3:')
+    for _, vd in tqdm(enumerate(testset_loader, 0)):
+        gen = var(vd).float().to(device)
+        bs, c, h, w = gen.shape
+        hs, ws  = h // 3, w // 3
+        out = jnet(gen[:,:,:hs,:ws])
+        p1 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,:ws])
+        p2 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,:ws])
+        p3 = output2na(out)
+        out = jnet(gen[:,:,:hs,ws:2*ws])
+        p4 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
+        p5 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,ws:2*ws])
+        p6 = output2na(out)
+        out = jnet(gen[:,:,:hs,2*ws:])
+        p7 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,2*ws:])
+        p8 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,2*ws:])
+        p9 = output2na(out)
+        out = np.hstack([
+            np.vstack([p1,p2,p3]),
+            np.vstack([p4,p5,p6]),
+            np.vstack([p7,p8,p9])
+        ])
+        result = testset.loaded_images[_][:,:,2].copy()
+        result[:out.shape[0],:out.shape[1]] = out
+        _ps3.append(result)
+
+
+    # In[ ]:
+
+    print('concat-ing...')
+    _ps = []
+    for i in tqdm(range(len(testset_loader))):
+        tmp = np.dstack([_ps1[i],_ps2[i],_ps3[i]])
+        _ps.append(tmp)
 
 # In[ ]:
 print('saving...')

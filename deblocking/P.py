@@ -30,6 +30,8 @@ parser.add_argument('--input_dir', '-i', required=True)
 parser.add_argument('--output_dir', '-o', required=True)
 args = parser.parse_args()
 
+device = torch.device('cpu' if args.cpu else 'cuda')
+
 def ensure_exists(dname):
     import os
     if not os.path.exists(dname):
@@ -204,8 +206,7 @@ def output2na(out):
 
 jnet = nn.DataParallel(JointNet3(3))
 jnet.load_state_dict(torch.load(args.weights))
-if not args.cpu:
-    jnet = jnet.cuda()
+jnet = jnet.to(device)
 
 
 # In[ ]:
@@ -219,39 +220,38 @@ testset_loader = torch.utils.data.DataLoader(testset, batch_size=1)
 _ps=[]
 
 print("running...")
-for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float()
-    if not args.cpu:
-        gen = gen.cuda()
-    bs, c, h, w = gen.shape
+with torch.no_grad():
+    for _, vd in tqdm(enumerate(testset_loader, 0)):
+        gen = var(vd).float().to(device)
+        bs, c, h, w = gen.shape
 
-    hs, ws  = h // 3, w // 3
-    out = jnet(gen[:,:,:hs,:ws])
-    p1 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,:ws])
-    p2 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,:ws])
-    p3 = output2na(out)
-    out = jnet(gen[:,:,:hs,ws:2*ws])
-    p4 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
-    p5 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,ws:2*ws])
-    p6 = output2na(out)
-    out = jnet(gen[:,:,:hs,2*ws:])
-    p7 = output2na(out)
-    out = jnet(gen[:,:,hs:2*hs,2*ws:])
-    p8 = output2na(out)
-    out = jnet(gen[:,:,2*hs:,2*ws:])
-    p9 = output2na(out)
-    out = np.hstack([
-        np.vstack([p1,p2,p3]),
-        np.vstack([p4,p5,p6]),
-        np.vstack([p7,p8,p9])
-    ])
-    result = testset.loaded_images[_].copy()
-    result[:out.shape[0],:out.shape[1]] = out
-    _ps.append(result)
+        hs, ws  = h // 3, w // 3
+        out = jnet(gen[:,:,:hs,:ws])
+        p1 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,:ws])
+        p2 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,:ws])
+        p3 = output2na(out)
+        out = jnet(gen[:,:,:hs,ws:2*ws])
+        p4 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,ws:2*ws])
+        p5 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,ws:2*ws])
+        p6 = output2na(out)
+        out = jnet(gen[:,:,:hs,2*ws:])
+        p7 = output2na(out)
+        out = jnet(gen[:,:,hs:2*hs,2*ws:])
+        p8 = output2na(out)
+        out = jnet(gen[:,:,2*hs:,2*ws:])
+        p9 = output2na(out)
+        out = np.hstack([
+            np.vstack([p1,p2,p3]),
+            np.vstack([p4,p5,p6]),
+            np.vstack([p7,p8,p9])
+        ])
+        result = testset.loaded_images[_].copy()
+        result[:out.shape[0],:out.shape[1]] = out
+        _ps.append(result)
 
 print("writing...")
 ensure_exists(args.output_dir)
