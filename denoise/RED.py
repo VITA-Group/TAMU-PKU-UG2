@@ -5,6 +5,7 @@
 
 import os
 import torch
+import argparse
 from torch import nn
 from torch.autograd import Variable as var
 from PIL import Image as im
@@ -22,6 +23,12 @@ import torch.optim as optim
 import sys
 from tqdm import tqdm
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--weights', '-w', default='./RED.weights')
+parser.add_argument('--cpu', action='store_true')
+parser.add_argument('--input_dir', '-i', required=True)
+parser.add_argument('--output_dir', '-o', required=True)
+args = parser.parse_args()
 
 # In[2]:
 
@@ -205,14 +212,16 @@ def output2na(out):
 
 # In[4]:
 
-jnet = nn.DataParallel(SimpleRED()).cuda()
-jnet.load_state_dict(torch.load(sys.argv[1]))
+jnet = nn.DataParallel(SimpleRED())
+jnet.load_state_dict(torch.load(args.weights))
+if not args.cpu:
+    jnet = jnet.cuda()
 
 
 # In[ ]:
 print('loading dataset...')
-testset = JPEGImageDataset(sys.argv[2], preload=True,
-                           transform=torchvision.transforms.Compose([
+testset = JPEGImageDataset(args.input_dir, preload=True,
+                            transform=torchvision.transforms.Compose([
                                Align2(24),
                                GetChannel(0),
                                torchvision.transforms.ToTensor()
@@ -222,7 +231,9 @@ _ps1=[]
 
 print('running channel 1/3:')
 for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float().cuda()
+    gen = var(vd).float()
+    if not args.cpu:
+        gen = gen.cuda()
     bs, c, h, w = gen.shape
     hs, ws  = h // 3, w // 3
     out = jnet(gen[:,:,:hs,:ws])
@@ -264,7 +275,9 @@ _ps2=[]
 
 print('running channel 2/3:')
 for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float().cuda()
+    gen = var(vd).float()
+    if not args.cpu:
+        gen = gen.cuda()
     bs, c, h, w = gen.shape
     hs, ws  = h // 3, w // 3
     out = jnet(gen[:,:,:hs,:ws])
@@ -305,7 +318,9 @@ _ps3=[]
 
 print('running channel 3/3:')
 for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float().cuda()
+    gen = var(vd).float()
+    if not args.cpu:
+        gen = gen.cuda()
     bs, c, h, w = gen.shape
     hs, ws  = h // 3, w // 3
     out = jnet(gen[:,:,:hs,:ws])
@@ -347,7 +362,7 @@ for i in tqdm(range(len(testset_loader))):
 
 # In[ ]:
 print('saving...')
-ensure_exists(sys.argv[3])
+ensure_exists(args.output_dir)
 for i in tqdm(range(len(testset_loader))):
-    plt.imsave(os.path.join(sys.argv[3], testset.getName(i)[:-3] + 'png'), _ps[i], cmap='gray')
+    plt.imsave(os.path.join(args.output_dir, testset.getName(i)[:-3] + 'png'), _ps[i], cmap='gray')
 

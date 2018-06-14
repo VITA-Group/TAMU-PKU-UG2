@@ -5,6 +5,7 @@
 
 import os
 import torch
+import argparse
 from torch import nn
 from torch.autograd import Variable as var
 from PIL import Image as im
@@ -21,6 +22,13 @@ import torchvision
 import torch.optim as optim
 import sys
 from tqdm import tqdm
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--weights', '-w', default='./P.weights')
+parser.add_argument('--cpu', action='store_true')
+parser.add_argument('--input_dir', '-i', required=True)
+parser.add_argument('--output_dir', '-o', required=True)
+args = parser.parse_args()
 
 def ensure_exists(dname):
     import os
@@ -194,13 +202,15 @@ def output2na(out):
 
 # In[ ]:
 
-jnet = nn.DataParallel(JointNet3(3)).cuda()
-jnet.load_state_dict(torch.load(sys.argv[1]))
+jnet = nn.DataParallel(JointNet3(3))
+jnet.load_state_dict(torch.load(args.weights))
+if not args.cpu:
+    jnet = jnet.cuda()
 
 
 # In[ ]:
 print("loading dataset...")
-testset = JPEGImageDataset(sys.argv[2], preload=True,
+testset = JPEGImageDataset(args.input_dir, preload=True,
                            transform=torchvision.transforms.Compose([
                                Align2(24),
                                torchvision.transforms.ToTensor()
@@ -210,7 +220,9 @@ _ps=[]
 
 print("running...")
 for _, vd in tqdm(enumerate(testset_loader, 0)):
-    gen = var(vd).float().cuda()
+    gen = var(vd).float()
+    if not args.cpu:
+        gen = gen.cuda()
     bs, c, h, w = gen.shape
 
     hs, ws  = h // 3, w // 3
@@ -242,7 +254,7 @@ for _, vd in tqdm(enumerate(testset_loader, 0)):
     _ps.append(result)
 
 print("writing...")
-ensure_exists(sys.argv[3])
+ensure_exists(args.output_dir)
 for i in tqdm(range(len(testset_loader))):
-    plt.imsave(os.path.join(sys.argv[3], testset.getName(i)[:-3] + 'png'), _ps[i])
+    plt.imsave(os.path.join(args.output_dir, testset.getName(i)[:-3] + 'png'), _ps[i])
 
