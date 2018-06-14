@@ -1,4 +1,4 @@
-
+gpu_id = 0
 
 % Set caffe mode
 if exist('gpu_id', 'var') && gpu_id
